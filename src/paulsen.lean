@@ -2,10 +2,32 @@ import data.matrix.basic
 import data.real.basic
 import analysis.normed_space.basic
 
+open_locale big_operators
+
 variables {n : ℕ} {d : ℕ}
 
-def is_parseval_frame (U : matrix (fin d) (fin n) ℝ) : Prop := sorry
-def is_eps_parseval_frame (U : matrix (fin d) (fin n) ℝ) (ε : ℝ) : Prop := sorry
+def outer (v : fin d → ℝ) (u : fin d → ℝ) : matrix (fin d) (fin d) ℝ :=
+λ i j, (v i) * (u j)
+
+def outers (U : matrix (fin d) (fin n) ℝ) : matrix (fin d) (fin d) ℝ :=
+  ∑ i : fin n, outer (λ j, U j i) (λ j, U j i)
+
+def is_positive (U : matrix (fin d) (fin d) ℝ) : Prop := 
+
+instance : partial_order (matrix (fin d) (fin d) ℝ) :=
+{
+  le := sorry,
+  lt := sorry,
+  le_refl := sorry,
+  le_trans := sorry,
+  lt_iff_le_not_le := sorry,
+  le_antisymm := sorry
+}
+
+def is_parseval_frame (U : matrix (fin d) (fin n) ℝ) : Prop := (outers U = 1) ∧ (∀ j : (fin n), ∥ (λ i, U i j) ∥^2 = d / n)
+
+def is_eps_parseval_frame (U : matrix (fin d) (fin n) ℝ) (ε : ℝ) : Prop := 
+  ((1 + ε) • 1 ≥ outers U ∧ outers U ≥ (1 - ε) • 1) ∧ (∀ j, (1 - ε) * d / n ≤ ∥ (λ i, U i j) ∥^2 ∧ ∥ (λ i, U i j) ∥^2 ≤ (1 + ε) * d / n)
 
 
 /-- Finds a nearby Parseval Frame as given in the proof, Paulsen made simple: -/
