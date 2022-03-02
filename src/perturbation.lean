@@ -24,8 +24,7 @@ lemma perturbations'_bound (ε : ℝ) (u : (fin d) → M) : ∀ i : fin d, ∥ p
 
 def perturbations (ε : ℝ) (u : (fin n) → M) : fin n → M := sorry
 
-def d_to_n (i : fin d) : (fin n) := sorry
+lemma perturbations_apply (ε : ℝ) (u : (fin n) → M) {f : (fin d) → (fin n)} (hf : function.injective f) : 
+  linear_independent ℝ (λ i : fin d, u (f i) + perturbations ε u (f i)) := sorry
 
-lemma perturbations_apply (ε : ℝ) (u : (fin n) → M) : linear_independent ℝ (λ i : fin d, u (d_to_n i) + perturbations ε u (d_to_n i)) := sorry
-
-lemma perturbations_bound (ε : ℝ) (u : (fin n) → M) : ∀ i : fin d, ∥ perturbations ε u (d_to_n i) ∥^2 ≤ ε := sorry
+lemma perturbations_bound (ε : ℝ) (u : (fin n) → M) : ∀ i : fin n, ∥ perturbations ε u i ∥^2 ≤ ε := sorry
