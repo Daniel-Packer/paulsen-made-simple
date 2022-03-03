@@ -5,8 +5,10 @@ import analysis.normed_space.basic
 variables {n : ℕ} {d : ℕ}
 
 /-- This is a fake eigenvalue function on matrices...
-It _will_ be set up this way, and likely return meaningless values for non-self-adjoint matrices-/
+It likely _will_ be set up this way, and likely return meaningless values for non-self-adjoint matrices-/
+-- Maybe not a finset, though? not sure...
 def eigs (A : matrix (fin d) (fin d) ℝ) : finset ℝ := sorry 
+
 
 lemma eigs_smul_ext {x : ℝ} (c : ℝ) (A : matrix (fin d) (fin d) ℝ) (h : x ≠ 0): 
   x ∈ eigs (A) ↔ (c * x) ∈ (eigs (c • A)) := sorry

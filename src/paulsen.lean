@@ -9,7 +9,13 @@ open_locale big_operators matrix
 
 variables {n d: ℕ} (hnd : (n : ℝ) * (d : ℝ) ≠ (0 : ℝ))
 
+noncomputable instance fro : has_norm (matrix (fin d) (fin n) ℝ) :=
+{
+  norm := λ M, real.sqrt(∑ i : fin d, ∑ j : fin n, M i j^2),
+}
 
+-- Uᵀ : fin n → fin d → ℝ
+/-- U is the collection of vectors that are an almost ε parseval frame: -/
 def is_parseval_frame (U : matrix (fin d) (fin n) ℝ) : Prop := 
   (outers U = 1) ∧ (∀ j : (fin n), ∥ Uᵀ j ∥^2 = d / n)
 
@@ -103,21 +109,22 @@ begin
   let A := make_radial_isotropic U h4,
   have hA : radial_isotropic (A ⬝ U) := make_radial_isotropic_apply U h4,
 
-  --need SVD to show these results (will also use orthogonal_radial_isotropic_radial_isotropic)
+  -- need SVD to show these results (will also use orthogonal_radial_isotropic_radial_isotropic)
+  -- A puts U in radial isotropic position
+  -- A = D Σ Eᵀ , so D Σ Eᵀ U is radial isotropic
+  -- Σ U is radial isotropic
+  -- Maybe reinterpet without matrices?
   let A' : matrix (fin d) (fin d) ℝ := sorry,
   have hA' : radial_isotropic (A' ⬝ U) := sorry,
   have hA'_diag : A'.is_diag := sorry,
 
   let W := real.sqrt (d / n) • norm_columns (A' ⬝ U),
   have def_W : ∀ i : fin n, Wᵀ i = real.sqrt (d / n) • (norm_columns (A' ⬝ U))ᵀ i := sorry,
+
   change is_parseval_frame W,
   rw is_parseval_frame,
   split,
   rw outers,
-  -- have hW : radial_isotropic W :=
-  -- begin
-  --   sorry,
-  -- end,
   rw radial_isotropic at hA',
   rw outers at hA',
   simp_rw [def_W],
@@ -153,6 +160,32 @@ begin
 end
 
 variables [semi_normed_group (matrix (fin d) (fin n) ℝ)] [normed_space ℝ (matrix (fin d) (fin n) ℝ)]
+
+noncomputable def W' {ε γ' : ℝ} {U : matrix (fin d) (fin n) ℝ} {M : matrix (fin d) (fin d) ℝ} 
+  (hU : is_eps_parseval_frame U (4 * ε)) (hM : M.is_diag) (hM' : radial_isotropic (M ⬝ U))
+  (hU' : ∀ i : fin n, (1 - γ') * (d / n) ≤ ∥ Uᵀ i ∥^2 ∧ ∥ Uᵀ i ∥^2 ≤ (1 + γ') * (d / n)) :
+  matrix (fin d) (fin n) ℝ :=
+  λ i j, ((∥ Uᵀ j ∥ / ∥ M.mul_vec (Uᵀ j) ∥) * (M.mul_vec (Uᵀ j) i))
+
+
+lemma dist_U_W'_bound {ε γ' : ℝ} {U W: matrix (fin d) (fin n) ℝ} {M : matrix (fin d) (fin d) ℝ} 
+  (hU : is_eps_parseval_frame U (4 * ε)) (hM : M.is_diag) (hM' : radial_isotropic (M ⬝ U))
+  (hU' : ∀ i : fin n, (1 - γ') * (d / n) ≤ ∥ Uᵀ i ∥^2 ∧ ∥ Uᵀ i ∥^2 ≤ (1 + γ') * (d / n)) :
+  ∥ U - (W' hU hM hM' hU') ∥^2 ≤ 4 * ε * d^2 + γ' * d^2 :=
+begin
+
+
+end 
+
+lemma dist_U_W_bound {ε γ' : ℝ} {U W: matrix (fin d) (fin n) ℝ} {M : matrix (fin d) (fin d) ℝ} 
+  (hU : is_eps_parseval_frame U (4 * ε)) (hM : M.is_diag) (hM' : radial_isotropic (M ⬝ U))
+  (hW : W = real.sqrt (d / n) • norm_columns (M ⬝ U))
+  (hU' : ∀ i : fin n, (1 - γ') * (d / n) ≤ ∥ Uᵀ i ∥^2 ∧ ∥ Uᵀ i ∥^2 ≤ (1 + γ') * (d / n)) :
+  ∥ U - W ∥^2 ≤ 8 * ε * d^2 + 4 * γ' * d^2 :=
+begin
+  sorry,
+
+end 
 
 theorem nearby_parseval_frame_apply_is_nearby {ε : ℝ} (U : matrix (fin d) (fin n) ℝ) 
   (hU : is_eps_parseval_frame U ε) : 
