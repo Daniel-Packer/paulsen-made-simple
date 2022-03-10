@@ -1,9 +1,13 @@
 import data.real.sqrt
+import data.real.sign
 import linear_algebra.matrix.is_diag
 import radial_isotropic
 import psd
 import perturbation
 import analysis.special_functions.pow
+import majorization
+import arithmetic_bounds
+import data.real.nnreal
 
 open_locale big_operators matrix
 
@@ -11,7 +15,7 @@ variables {n d: ℕ} (hnd : (n : ℝ) * (d : ℝ) ≠ (0 : ℝ))
 
 noncomputable instance fro : has_norm (matrix (fin d) (fin n) ℝ) :=
 {
-  norm := λ M, real.sqrt(∑ i : fin d, ∑ j : fin n, M i j^2),
+  norm := λ M, real.sqrt(∑ j : fin n, ∑ i : fin d, M i j^2),
 }
 
 -- Uᵀ : fin n → fin d → ℝ
@@ -159,21 +163,38 @@ begin
 
 end
 
-variables [semi_normed_group (matrix (fin d) (fin n) ℝ)] [normed_space ℝ (matrix (fin d) (fin n) ℝ)]
-
-noncomputable def W' {ε γ' : ℝ} {U : matrix (fin d) (fin n) ℝ} {M : matrix (fin d) (fin d) ℝ} 
-  (hU : is_eps_parseval_frame U (4 * ε)) (hM : M.is_diag) (hM' : radial_isotropic (M ⬝ U))
-  (hU' : ∀ i : fin n, (1 - γ') * (d / n) ≤ ∥ Uᵀ i ∥^2 ∧ ∥ Uᵀ i ∥^2 ≤ (1 + γ') * (d / n)) :
+noncomputable def W' (U : matrix (fin d) (fin n) ℝ) (M : matrix (fin d) (fin d) ℝ) :
   matrix (fin d) (fin n) ℝ :=
   λ i j, ((∥ Uᵀ j ∥ / ∥ M.mul_vec (Uᵀ j) ∥) * (M.mul_vec (Uᵀ j) i))
 
 
+-- Note, u^2 means u squared entrywise
+lemma w'_sq_maj_u_sq {ε γ' : ℝ} {U W: matrix (fin d) (fin n) ℝ} {M : matrix (fin d) (fin d) ℝ} 
+  (hU : is_eps_parseval_frame U (4 * ε)) (hM : M.is_diag) (hM' : radial_isotropic (M ⬝ U))
+  (hM'' : ∀ i j : fin d, i ≥ j → M i i ≥ M j j)
+  (hU' : ∀ i : fin n, (1 - γ') * (d / n) ≤ ∥ Uᵀ i ∥^2 ∧ ∥ Uᵀ i ∥^2 ≤ (1 + γ') * (d / n)) :
+  ∀ i : fin n,  majorizes (((W' U M)ᵀ i)^2) (Uᵀ i) :=
+begin
+  sorry,
+end 
+
 lemma dist_U_W'_bound {ε γ' : ℝ} {U W: matrix (fin d) (fin n) ℝ} {M : matrix (fin d) (fin d) ℝ} 
   (hU : is_eps_parseval_frame U (4 * ε)) (hM : M.is_diag) (hM' : radial_isotropic (M ⬝ U))
+  (hM'' : ∀ i j : fin d, i ≥ j → M i i ≥ M j j) (hM''' : ∀ i : fin d, M i i ≥ 0)
   (hU' : ∀ i : fin n, (1 - γ') * (d / n) ≤ ∥ Uᵀ i ∥^2 ∧ ∥ Uᵀ i ∥^2 ≤ (1 + γ') * (d / n)) :
-  ∥ U - (W' hU hM hM' hU') ∥^2 ≤ 4 * ε * d^2 + γ' * d^2 :=
+  ∥ U - (W' U M) ∥^2 ≤ 4 * ε * d^2 + γ' * d^2 :=
 begin
+  calc ∥ U - (W' U M) ∥^2 = ∑ j : fin n, ∑ i : fin d, ((U i j - (W' U M) i j)^2) : by 
+  { simp only [norm], rw real.sq_sqrt, congr,
+  conv_rhs {
+    congr,
+    skip,
+    funext,
+    
 
+  }
+  }
+  ... ≤ 4 * ε * d^2 + γ' * d^2 : by {},
 
 end 
 
