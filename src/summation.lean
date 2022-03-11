@@ -101,7 +101,30 @@ theorem sum_nonneg_of_nonneg (h : ∀ i : fin n, 0 ≤ f i) : 0 ≤ ∑ i : fin 
 begin
   induction n with n h0,
   simp only [le_refl, finset.sum_empty, finset.sum_congr, fintype.univ_of_is_empty],
-  rw sum_split_singleton (n.succ : fin n.succ),
+  rw sum_split_singleton (n : fin n.succ),
+  rw sum_n_succ_ne_n_eq_sum_n,
+  let g := f ∘ fin.succ_above n,
+  have : ∀ i : fin n, 0 ≤ g i :=
+  begin
+    intro i,
+    change 0 ≤ (f ∘ fin.succ_above n) i,
+    rw function.comp_app,
+    exact h _,
+  end,
+  have hg: ∀ i : fin n, g i = f i := λ i,
+  begin
+    simp only [g],
+    rw function.comp_app,
+    rw fin.succ_above_below,
+    rw fin.coe_eq_cast_succ,
+    rw [fin.lt_def, fin.val_eq_coe, fin.val_eq_coe, fin.coe_cast_succ, fin.coe_of_nat_eq_mod],
+    rw nat.mod_eq_of_lt (nat.lt_succ_self n),
+    apply fin.cast_succ_lt_last,
+  end,
+  simp_rw ← hg,
+  apply add_nonneg,
+  exact h0 this,
+  exact h n,
 end
 
 #check (fintype(fin n))
