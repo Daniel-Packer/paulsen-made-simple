@@ -29,7 +29,7 @@ begin
   simp only [finset.mem_univ, if_true, eq_self_iff_true, finset.sum_ite_eq'],
 end
 
-theorem sum_n_succ_eq_sum_n_add_n_succ : 
+theorem sum_n_succ_ne_n_eq_sum_n: 
   ∑ (i : fin n.succ) in finset.univ.filter (λ x : fin n.succ, x ≠ n), g i 
   = ∑ i : fin n, g i :=
 begin
