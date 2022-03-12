@@ -97,6 +97,14 @@ begin
   exact nat.lt_succ_self n,
 end
 
+
+theorem sum_split_last (f : fin n.succ → ℝ) : ∑ (i : fin n.succ), f i 
+  = ∑ (i : fin n), f i + f n :=
+begin
+  rw sum_split_singleton (n : fin n.succ),
+  rw sum_n_succ_ne_n_eq_sum_n,
+end
+
 theorem sum_nonneg_of_nonneg (h : ∀ i : fin n, 0 ≤ f i) : 0 ≤ ∑ i : fin n, f i :=
 begin
   induction n with n h0,

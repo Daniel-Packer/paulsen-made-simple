@@ -1,7 +1,9 @@
 import data.real.basic
+import data.fin.basic
+import summation
 import algebra.big_operators.ring
 
-variables {d n : ℕ}
+variables {d n : ℕ} {hdzero : d ≠ 0}
 
 open_locale big_operators
 
@@ -15,12 +17,101 @@ def majorizes (x y : fin d → ℝ ) : Prop :=
   majorizes_le x y ∧ majorizes_eq x y
 
 def T (x y : fin d → ℝ) : ℝ :=
-  ∑ j : fin d, j.val • (y j - x j)
+  ∑ j : fin d, (j.val + 1) • (y j - x j)
 
-lemma T_apply {x y : fin d → ℝ} (hmaj : majorizes x y) : 
-  T x y = ∑ j : fin d, (∑ i : fin (j.val), (x (fin.cast_le j.is_lt i) - y (fin.cast_le j.is_lt i))) :=
+lemma T_apply' [has_zero (fin (d + 1))] {x y : fin (d + 1) → ℝ} : T x y = ∑ j i : fin (d + 1), ite (i ≤ j) (y j - x j) 0 :=
 begin
   rw T,
+  congr,
+  ext j,
+  rw finset.sum_ite,
+  have : ∀ i : fin (d + 1), i ∈ finset.univ.filter (λ x : fin (d + 1), ¬x ≤ j) → (0 : ℝ) = 0 :=
+  begin
+    intros i h,
+    exact rfl,
+  end,
+
+  have hsum := finset.sum_eq_zero this,
+  simp_rw function.comp_app at hsum,
+  rw [hsum, add_zero],
+  rw finset.sum_const,
+  simp only [fin.val_eq_coe, nsmul_eq_mul, nat.cast_add, nat.cast_one, mul_eq_mul_right_iff],
+  left,
+  simp_rw [fin.le_def, ← fin.coe_eq_val],
+  induction ↑j with j h,
+  simp_rw nat.le_zero_iff,
+  have : ∀ x : fin (d + 1), ↑x = 0 ↔ x = 0 :=
+  begin
+    intro x,
+    have : (0 : fin (d + 1)).val = 0 :=
+    begin
+      simp?,
+    end,
+  end,
+  rw ← fintype.card_subtype,
+
+  -- have : {x : fin d // ↑x = 0} ≃ {x : fin d // x = 0} :=
+  -- {
+  --   to_fun := 
+  --   begin
+  --     intro x,
+  --     have := subtype.prop x,
+  --     have : x = 0 := sorry,
+  --   end,
+  --   inv_fun :=
+  --   begin
+
+  --   end,
+  --   left_inv :=
+  --   begin
+
+  --   end,
+  --   right_inv :=
+  --   begin
+
+  --   end,
+  -- }
+
+
+  -- change ↑0 + 1 = ↑((finset.univ.filter (eq 0)).card,
+  -- rw finset.filter_eq,
+  -- induction j with j hj h,
+
+  -- rw finset.sum_comm,
+end
+
+lemma T_apply {x y : fin d → ℝ} : 
+  -- T x y = ∑ j : fin d, (∑ i : fin (j.val), (x (fin.cast_le j.is_lt i) - y (fin.cast_le j.is_lt i))) :=
+  T x y = ∑ j : fin d, (∑ i : fin d in finset.univ.filter (λ i, i ≤ j), (x i - y i)) :=
+begin
+  rw T,
+  induction d with d hd,
+  simp only [finset.sum_sub_distrib,
+ fin.val_eq_coe,
+ finset.sum_empty,
+ finset.filter_true_of_mem,
+ nsmul_eq_mul,
+ eq_self_iff_true,
+ sub_zero,
+ nat.cast_add,
+ nat.cast_one,
+ finset.sum_const_zero,
+ finset.sum_congr,
+ fintype.univ_of_is_empty],
+  rw sum_split_last,
+  rw sum_split_last,
+  have : ∑ (j : fin d), (j.val + 1) • (y j - x j) = ∑ (i : fin d), ((i : fin d.succ).val + 1) • (y i - x i) :=
+  begin
+    sorry,
+  end,
+  rw ← this,
+  rw hd,
+  simp?,
+
+  -- simp?,
+  -- simp_rw hd,
+  -- simp [hd],
+  -- rw hd,
   sorry,
 end
 
