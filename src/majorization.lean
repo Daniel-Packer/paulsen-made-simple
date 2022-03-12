@@ -2,20 +2,24 @@ import data.real.basic
 import data.fin.basic
 import summation
 import algebra.big_operators.ring
+import summation
 
 variables {d n : ℕ} {hdzero : d ≠ 0}
 
 open_locale big_operators
 
+-- ∀ j ≤ d, ∑ (i < j), x i ≤ ∑ (i < j), y i
 def majorizes_le (x y : fin d → ℝ) : Prop :=
   ∀ j ≤ d, ∑ i : (fin j), x (fin.cast_le H i) ≤ ∑ i : (fin j), y (fin.cast_le H i)
 
+-- ∑ (i < d), x i = ∑ (i < d), y i
 def majorizes_eq (x y : fin d → ℝ) : Prop :=
   ∑ i : fin d, x i = ∑ i : fin d, y i
   
 def majorizes (x y : fin d → ℝ ) : Prop :=
   majorizes_le x y ∧ majorizes_eq x y
 
+-- T x y := ∑ (j < d), j • (x j - y j)
 def T (x y : fin d → ℝ) : ℝ :=
   ∑ j : fin d, (j.val + 1) • (y j - x j)
 
