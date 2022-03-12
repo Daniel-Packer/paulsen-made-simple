@@ -1,22 +1,27 @@
 import data.real.basic
 import algebra.big_operators.ring
+import summation
 
 variables {d n : ℕ}
 
 open_locale big_operators
 
+-- ∀ j ≤ d, ∑ (i < j), x i ≤ ∑ (i < j), y i
 def majorizes_le (x y : fin d → ℝ) : Prop :=
   ∀ j ≤ d, ∑ i : (fin j), x (fin.cast_le H i) ≤ ∑ i : (fin j), y (fin.cast_le H i)
 
+-- ∑ (i < d), x i = ∑ (i < d), y i
 def majorizes_eq (x y : fin d → ℝ) : Prop :=
   ∑ i : fin d, x i = ∑ i : fin d, y i
   
 def majorizes (x y : fin d → ℝ ) : Prop :=
   majorizes_le x y ∧ majorizes_eq x y
 
+-- T x y := ∑ (j < d), j • (x j - y j)
 def T (x y : fin d → ℝ) : ℝ :=
-  ∑ j : fin d, j.val • (y j - x j)
+  ∑ j : fin d, j.val • (x j - y j)
 
+-- T x y = ∑ (j < d), ∑ (i < j) (x i - y i)
 lemma T_apply {x y : fin d → ℝ} (hmaj : majorizes x y) : 
   T x y = ∑ j : fin d, (∑ i : fin (j.val), (x (fin.cast_le j.is_lt i) - y (fin.cast_le j.is_lt i))) :=
 begin
