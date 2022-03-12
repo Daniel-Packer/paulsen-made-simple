@@ -34,6 +34,13 @@ theorem sum_split_singleton (k : fin n) :
 --   simp only [finset.mem_univ, if_true, eq_self_iff_true, finset.sum_ite_eq'],
 -- end
 
+theorem sum_succ_eq_sum :
+  ∑ (i : fin n.succ), g i = (∑ (i : fin n), g i) + g (fin.last n) :=
+begin
+  rw fin.sum_univ_cast_succ,
+  norm_cast,
+end
+
 theorem sum_n_succ_ne_n_eq_sum_n: 
   ∑ (i : fin n.succ) in finset.univ.filter (λ x : fin n.succ, x ≠ n), g i 
   = ∑ i : fin n, g i :=
