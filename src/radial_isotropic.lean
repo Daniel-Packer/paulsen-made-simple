@@ -5,6 +5,7 @@ import linear_algebra.linear_independent
 import linear_algebra.matrix.to_lin
 import linear_algebra.unitary_group
 import analysis.normed_space.basic
+import analysis.inner_product_space.euclidean_dist
 
 variables {n d : ℕ} (U : matrix (fin d) (fin n) ℝ)
 
@@ -27,9 +28,9 @@ lemma outers_smul (U : matrix (fin d) (fin n) ℝ) (c : ℝ) : outers (c • U) 
 
 def norm_columns (U : matrix (fin d) (fin n) ℝ) : matrix (fin d) (fin n) ℝ := sorry
 
-lemma norm_columns_apply_sq (U : matrix (fin d) (fin n) ℝ) : ∀ j : (fin n), ∥ (norm_columns U)ᵀ j ∥^2 = 1  := sorry
+lemma norm_columns_apply_sq (U : matrix (fin d) (fin n) ℝ) : ∀ j : (fin n), ∥ to_euclidean ((norm_columns U)ᵀ j) ∥^2 = 1  := sorry
 
-lemma norm_columns_apply (U : matrix (fin d) (fin n) ℝ) : ∀ j : (fin n), ∥ (norm_columns U)ᵀ j ∥ = 1  := sorry
+lemma norm_columns_apply (U : matrix (fin d) (fin n) ℝ) : ∀ j : (fin n), ∥ to_euclidean ((norm_columns U)ᵀ j) ∥ = 1  := sorry
 
 def radial_isotropic (U : matrix (fin d) (fin n) ℝ) : Prop := outers (norm_columns U) = (n / d  : ℝ) • 1
 

@@ -1,6 +1,7 @@
 import data.real.sqrt
 import data.real.sign
 import linear_algebra.matrix.is_diag
+import analysis.inner_product_space.basic
 import radial_isotropic
 import psd
 import perturbation
@@ -12,11 +13,16 @@ import data.real.nnreal
 open_locale big_operators matrix
 
 variables {n d: ℕ} (hnd : (n : ℝ) * (d : ℝ) ≠ (0 : ℝ))
+variables {V : matrix (fin d) (fin n) ℝ} {ε : ℝ}
 
 noncomputable instance fro : has_norm (matrix (fin d) (fin n) ℝ) :=
 {
   norm := λ M, real.sqrt(∑ j : fin n, ∑ i : fin d, M i j^2),
 }
+
+notation `∥`x`∥₂` := ∥ to_euclidean x ∥
+notation `⟪`x`, `y`⟫` := @inner ℝ _ _ x y
+
 
 -- Uᵀ : fin n → fin d → ℝ
 /-- U is the collection of vectors that are an almost ε parseval frame: -/
@@ -75,18 +81,56 @@ begin
   exact real.sqrt (d / n) • norm_columns (A' ⬝ U),
 end
 
+noncomputable def V_norm (V : matrix (fin d) (fin n) ℝ) := (real.sqrt(d / n)) • norm_columns(V)
+noncomputable def η (ε : ℝ) (V : matrix (fin d) (fin n) ℝ): fin n → fin d → ℝ := perturbations ε (V_norm V)ᵀ
+noncomputable def U (ε : ℝ) (V : matrix (fin d) (fin n) ℝ):= (V_norm V) + (η ε V)ᵀ
+
+lemma bound_1 {ε : ℝ} (hnd : (n : ℝ) * d ≠ 0) (V : matrix (fin d) (fin n) ℝ) 
+  (hV : is_eps_parseval_frame V ε) : ∀ i : fin n, ∥ (U ε V)ᵀ i - Vᵀ i ∥₂^2 ≤
+    (real.sqrt(d / n) - real.sqrt((1 - ε) * d / n))^2 + ∥ η ε V i ∥₂^2 + 2 * ∥ η ε V i ∥₂ :=
+begin
+  intro i,
+  -- have h1 : ∥ η ε V i ∥₂^2 ≤ ε :=
+  --   calc ∥ η ε V i ∥₂^2 = ∥ perturbations ε (V_norm V)ᵀ i ∥₂^2 : by {congr}
+  --     ...         ≤ ε : perturbations_bound ε (V_norm V)ᵀ i,
+  rw [to_euclidean.map_sub, ← real_inner_self_eq_norm_sq],
+
+  rw [real_inner_sub_sub_self, real_inner_self_eq_norm_sq, real_inner_self_eq_norm_sq],
+  simp only [U],
+  rw [matrix.transpose_add, pi.add_apply, matrix.transpose_transpose, to_euclidean.map_add],
+  have h2 := (norm_add_le (to_euclidean ((V_norm V)ᵀ i)) (to_euclidean (η ε V i))),
+  rw ← abs_eq_self.2 (norm_nonneg (to_euclidean ((V_norm V)ᵀ i) + to_euclidean ((η ε V i)))) at h2,
+  rw ← abs_eq_self.2 (add_nonneg (norm_nonneg (to_euclidean ((V_norm V)ᵀ i) )) _) at h2,
+  have h3 := sq_le_sq h2,
+  clear h2,
+  suffices : (∥ to_euclidean ((V_norm V)ᵀ i) ∥ + ∥to_euclidean (η ε V i) ∥)^2 
+    - 2 * ⟪ to_euclidean ((V_norm V)ᵀ i) + to_euclidean (η ε V i), to_euclidean (Vᵀ i)⟫ + ∥ to_euclidean (Vᵀ i) ∥^2 ≤ 
+    (real.sqrt(d / n) - real.sqrt((1 - ε) * d / n))^2 + ∥ to_euclidean (η ε V i) ∥^2 + 2 * ∥ to_euclidean (η ε V i) ∥,
+    { apply (le_trans _ this),
+    apply add_le_add,
+    apply sub_le_sub,
+    exact h3,
+    exact le_refl _,
+    exact le_refl _,
+    },
+  rw add_sq,
+  simp only [V_norm],
+  rw matrix.transpose_smul,
+  rw pi.smul_apply,
+  rw to_euclidean.map_smul,
+  rw norm_smul,
+  rw norm_columns_apply,
+  
+end,
+
+
 theorem nearby_parseval_frame_is_parseval {ε : ℝ} (hnd : (n : ℝ) * d ≠ 0) (V : matrix (fin d) (fin n) ℝ) 
   (hV : is_eps_parseval_frame V ε) : is_parseval_frame (nearby_parseval_frame V hV) :=
 begin
-  let V_norm := (real.sqrt(d / n)) • norm_columns(V),
-  let η := perturbations ε V_normᵀ,
-  let U := V_norm + ηᵀ,
 
-  have h1 : ∀ i : fin n, ∥ Uᵀ i - Vᵀ i ∥^2 ≤
-    (real.sqrt(d / n) - real.sqrt((1 - ε) * d / n))^2 + ∥ η i ∥^2 + 2 * ∥ η i ∥ :=
-  begin
-    sorry
-  end,
+  have h1 : ∀ i : fin n, ∥ (U ε V)ᵀ i - Vᵀ i ∥₂^2 ≤
+    (real.sqrt(d / n) - real.sqrt((1 - ε) * d / n))^2 + ∥ η ε V i ∥₂^2 + 2 * ∥ η ε V i ∥₂ := bound_1 hnd V hV,
+  
   have h2 : ∀ i : fin n, ∥ Uᵀ i - Vᵀ i ∥^2 ≤
     ε * d / n :=
   begin
