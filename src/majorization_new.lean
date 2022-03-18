@@ -4,6 +4,7 @@ import data.fin.basic
 import algebra.big_operators.ring
 import data.nat.interval
 import algebra.big_operators.intervals
+import group_theory.group_action.basic
 
 variables (d : ℕ) (x y : ℕ → ℝ)
 
@@ -19,13 +20,9 @@ def majorizes_eq : Prop :=
 
 def T := ∑ (j : ℕ) in (finset.range d), j • (y j - x j)
 
-lemma self_eq_sum (j : ℕ) : j = ∑ (i : ℕ) in (finset.range j), 1 :=
-begin
-  simp only [nat.cast_id, finset.sum_const, eq_self_iff_true, finset.card_range,
-    nat.smul_one_eq_coe],
-end
-
-lemma T_alt (x y : ℕ → ℝ) (h : majorizes_eq d x y):
+-- T(x,y) = ∑ (i < d), ∑ (j < i), (x j - y j)
+-- something is weird here with using (finset.range i), since when i = 0 we still want (x 0 - y 0).
+lemma T_alt_without_last (x y : ℕ → ℝ) (h_maj : majorizes_eq d x y) :
   T d x y =
   ∑ (i : ℕ) in (finset.range d), ∑ (j : ℕ) in (finset.range i), (x j - y j) :=
 begin
@@ -43,12 +40,12 @@ begin
     rw finset.sum_add_distrib,
     simp only [finset.sum_sub_distrib, finset.sum_const, nsmul_eq_mul, nat.Ico_zero_eq_range,
       self_eq_add_right, finset.card_range, finset.sum_congr],
-    rw majorizes_eq at h,
+    rw majorizes_eq at h_maj,
     linarith,
   end,
   rw this,
   clear this,
-  rw majorizes_eq at h,
+  rw majorizes_eq at h_maj,
   apply finset.sum_congr,
   simp only [eq_self_iff_true],
   intro i,
@@ -72,5 +69,33 @@ begin
     rw finset.mem_range at hi,
     linarith,
   end,
-  rw [this, h],
+  rw [this, h_maj],
+end
+
+lemma eq1 (x y : ℕ → ℝ) (h_maj : majorizes_eq d x y) :
+  2 • (T d x y) = ∑ (i : ℕ) in (finset.range d), ∑ (j : ℕ) in (finset.range i), 2 • (x j - y j) :=
+begin
+  rw T_alt_without_last,
+  simp only [finset.smul_sum],
+  exact h_maj,
+end
+
+-- T(x,y) = ∑ (i ≤ d), ∑ (j < i), (x j - y j)
+lemma T_alt_with_last (x y : ℕ → ℝ) (h_maj : majorizes_eq d x y) :
+  T d x y =
+  ∑ (i : ℕ) in (finset.range (d + 1)), ∑ (j : ℕ) in (finset.range i), (x j - y j) :=
+begin
+  have : ∑ (i : ℕ) in (finset.range (d + 1)), ∑ (j : ℕ) in (finset.range i), (x j - y j)
+    = ∑ (i : ℕ) in (finset.range d), ∑ (j : ℕ) in (finset.range i), (x j - y j) +
+      ∑ (j : ℕ) in (finset.range d), (x j - y j) :=
+  begin
+    exact finset.sum_range_succ (λ (x_1 : ℕ), ∑ (j : ℕ) in finset.range x_1, (x j - y j)) d,
+  end,
+  rw T_alt_without_last,
+  rw this,
+  simp only [finset.sum_sub_distrib, self_eq_add_right, finset.sum_congr],
+  rw majorizes_eq at h_maj,
+  norm_num at h_maj,
+  linarith,
+  exact h_maj,
 end
