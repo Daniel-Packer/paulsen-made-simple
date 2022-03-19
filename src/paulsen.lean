@@ -15,9 +15,24 @@ open_locale big_operators matrix
 variables {n d: ℕ} (hnd : (n : ℝ) * (d : ℝ) ≠ (0 : ℝ))
 variables {V : matrix (fin d) (fin n) ℝ} {ε : ℝ}
 
+def to_pi (f : ℕ → ℝ) : (fin n → ℝ) := λ i, f i
+
+def to_N_to_R (f : fin n → ℝ) : ℕ → ℝ := λ i, if h : i < n then (f (fin.mk i h)) else 0
+
+lemma to_N_to_R_to_to_pi (f : fin n → ℝ) : to_pi (to_N_to_R f) = f :=
+begin
+  
+
+end
+
 noncomputable instance fro : has_norm (matrix (fin d) (fin n) ℝ) :=
 {
   norm := λ M, real.sqrt(∑ j : fin n, ∑ i : fin d, M i j^2),
+}
+
+noncomputable instance : has_norm (fin n → ℝ) :=
+{
+  norm := λ v, real.sqrt(∑ j : fin n, (v j)^2 ),
 }
 
 notation `∥`x`∥₂` := ∥ to_euclidean x ∥
@@ -32,6 +47,20 @@ def is_parseval_frame (U : matrix (fin d) (fin n) ℝ) : Prop :=
 def is_eps_parseval_frame (U : matrix (fin d) (fin n) ℝ) (ε : ℝ) : Prop := 
   ((1 + ε) • 1 ≥ outers U ∧ outers U ≥ (1 - ε) • 1) ∧ (∀ j, (1 - ε) * d / n ≤ ∥ Uᵀ j ∥^2 ∧ ∥ Uᵀ j ∥^2 ≤ (1 + ε) * d / n)
 
+variable (v : fin n → ℝ)
+
+#check ∥ v ∥
+
+example (v : fin n → ℝ) : 1 = 2 :=
+begin
+  have : ∥ v ∥ = 1 := sorry,
+  simp only [norm] at this,
+  have : ⟪ to_euclidean v, to_euclidean v ⟫ = ∥ v ∥^2 :=
+  begin
+    simp only [is_R_or_C.inner_apply, is_R_or_C.conj_to_real, pi_Lp.inner_apply, finset.sum_congr],
+    simp only [norm],
+  end,
+end
 
 /-- Finds a nearby Parseval Frame as given in the proof, Paulsen made simple: -/
 
@@ -103,7 +132,7 @@ begin
   rw ← abs_eq_self.2 (add_nonneg (norm_nonneg (to_euclidean ((V_norm V)ᵀ i) )) _) at h2,
   have h3 := sq_le_sq h2,
   clear h2,
-  suffices : (∥ to_euclidean ((V_norm V)ᵀ i) ∥ + ∥to_euclidean (η ε V i) ∥)^2 
+  suffices : (∥ ((V_norm V)ᵀ i) ∥₂ + ∥(η ε V i) ∥₂)^2 
     - 2 * ⟪ to_euclidean ((V_norm V)ᵀ i) + to_euclidean (η ε V i), to_euclidean (Vᵀ i)⟫ + ∥ to_euclidean (Vᵀ i) ∥^2 ≤ 
     (real.sqrt(d / n) - real.sqrt((1 - ε) * d / n))^2 + ∥ to_euclidean (η ε V i) ∥^2 + 2 * ∥ to_euclidean (η ε V i) ∥,
     { apply (le_trans _ this),

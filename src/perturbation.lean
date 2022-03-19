@@ -27,6 +27,13 @@ lemma perturbations'_apply (ε : ℝ) (u : (fin d) → (fin d) → ℝ) : linear
 
 lemma perturbations'_bound (ε : ℝ) (u : (fin d) → fin d → ℝ) : ∀ i : fin d, ∥ to_euclidean (perturbations' ε u i) ∥^2 ≤ ε := sorry
 
+def perturbation_small (ε : ℝ) (u v : fin d → ℝ) : fin d → ℝ  := sorry
+
+lemma perturbation_small_apply (ε : ℝ) (u v : fin d → ℝ) : 
+  linear_independent ℝ (λ i : bool, if i then u + perturbation_small ε u v else v):=
+begin
+  
+end
 
 --What we actually need:
 def perturbations (ε : ℝ) (u : (fin n) → fin d → ℝ) : fin n → fin d → ℝ := sorry
