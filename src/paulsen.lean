@@ -14,6 +14,7 @@ open_locale big_operators matrix
 
 variables {n d: ℕ} (hnd : (n : ℝ) * (d : ℝ) ≠ (0 : ℝ))
 variables {V : matrix (fin d) (fin n) ℝ} {ε : ℝ}
+variables {v : (fin n) → ℝ}
 
 def to_pi (f : ℕ → ℝ) : (fin n → ℝ) := λ i, f i
 
@@ -21,8 +22,13 @@ def to_N_to_R (f : fin n → ℝ) : ℕ → ℝ := λ i, if h : i < n then (f (f
 
 lemma to_N_to_R_to_to_pi (f : fin n → ℝ) : to_pi (to_N_to_R f) = f :=
 begin
-  
-
+  ext,
+  rw to_N_to_R,
+  rw to_pi,
+  simp only [dite_eq_ite, dif_ctx_congr, fin.mk_eq_subtype_mk, fin.eta, ite_eq_left_iff],
+  intro h,
+  exfalso,
+  exact h (subtype.prop x),
 end
 
 noncomputable instance fro : has_norm (matrix (fin d) (fin n) ℝ) :=
@@ -32,10 +38,25 @@ noncomputable instance fro : has_norm (matrix (fin d) (fin n) ℝ) :=
 
 noncomputable instance : has_norm (fin n → ℝ) :=
 {
-  norm := λ v, real.sqrt(∑ j : fin n, (v j)^2 ),
+  norm := λ v, real.sqrt(∑ j : fin n, |v j|^2 ),
 }
 
-notation `∥`x`∥₂` := ∥ to_euclidean x ∥
+instance : has_inner ℝ (fin n → ℝ) :=
+{
+  inner := λ u v, ∑ i : fin n, (u i) * (v i)
+}
+
+lemma norm_is_euclidean (v : fin n → ℝ) : ∥ v ∥^2 = ⟪ v , v ⟫_ℝ :=
+begin
+  simp only [norm, inner],
+  rw real.sq_sqrt,
+  congr,
+  ext,
+  simp only [pow_bit0_abs],
+  simp_rw [sq, ← real.coe_nnabs, sq, ← nnreal.coe_mul, ← nnreal.coe_sum],
+  exact nnreal.coe_nonneg _,
+end
+
 notation `⟪`x`, `y`⟫` := @inner ℝ _ _ x y
 
 
@@ -46,21 +67,6 @@ def is_parseval_frame (U : matrix (fin d) (fin n) ℝ) : Prop :=
 
 def is_eps_parseval_frame (U : matrix (fin d) (fin n) ℝ) (ε : ℝ) : Prop := 
   ((1 + ε) • 1 ≥ outers U ∧ outers U ≥ (1 - ε) • 1) ∧ (∀ j, (1 - ε) * d / n ≤ ∥ Uᵀ j ∥^2 ∧ ∥ Uᵀ j ∥^2 ≤ (1 + ε) * d / n)
-
-variable (v : fin n → ℝ)
-
-#check ∥ v ∥
-
-example (v : fin n → ℝ) : 1 = 2 :=
-begin
-  have : ∥ v ∥ = 1 := sorry,
-  simp only [norm] at this,
-  have : ⟪ to_euclidean v, to_euclidean v ⟫ = ∥ v ∥^2 :=
-  begin
-    simp only [is_R_or_C.inner_apply, is_R_or_C.conj_to_real, pi_Lp.inner_apply, finset.sum_congr],
-    simp only [norm],
-  end,
-end
 
 /-- Finds a nearby Parseval Frame as given in the proof, Paulsen made simple: -/
 
@@ -115,14 +121,14 @@ noncomputable def η (ε : ℝ) (V : matrix (fin d) (fin n) ℝ): fin n → fin 
 noncomputable def U (ε : ℝ) (V : matrix (fin d) (fin n) ℝ):= (V_norm V) + (η ε V)ᵀ
 
 lemma bound_1 {ε : ℝ} (hnd : (n : ℝ) * d ≠ 0) (V : matrix (fin d) (fin n) ℝ) 
-  (hV : is_eps_parseval_frame V ε) : ∀ i : fin n, ∥ (U ε V)ᵀ i - Vᵀ i ∥₂^2 ≤
-    (real.sqrt(d / n) - real.sqrt((1 - ε) * d / n))^2 + ∥ η ε V i ∥₂^2 + 2 * ∥ η ε V i ∥₂ :=
+  (hV : is_eps_parseval_frame V ε) : ∀ i : fin n, ∥ (U ε V)ᵀ i - Vᵀ i ∥^2 ≤
+    (real.sqrt(d / n) - real.sqrt((1 - ε) * d / n))^2 + ∥ η ε V i ∥^2 + 2 * ∥ η ε V i ∥ :=
 begin
   intro i,
   -- have h1 : ∥ η ε V i ∥₂^2 ≤ ε :=
   --   calc ∥ η ε V i ∥₂^2 = ∥ perturbations ε (V_norm V)ᵀ i ∥₂^2 : by {congr}
   --     ...         ≤ ε : perturbations_bound ε (V_norm V)ᵀ i,
-  rw [to_euclidean.map_sub, ← real_inner_self_eq_norm_sq],
+  rw [← real_inner_self_eq_norm_sq],
 
   rw [real_inner_sub_sub_self, real_inner_self_eq_norm_sq, real_inner_self_eq_norm_sq],
   simp only [U],
@@ -132,8 +138,8 @@ begin
   rw ← abs_eq_self.2 (add_nonneg (norm_nonneg (to_euclidean ((V_norm V)ᵀ i) )) _) at h2,
   have h3 := sq_le_sq h2,
   clear h2,
-  suffices : (∥ ((V_norm V)ᵀ i) ∥₂ + ∥(η ε V i) ∥₂)^2 
-    - 2 * ⟪ to_euclidean ((V_norm V)ᵀ i) + to_euclidean (η ε V i), to_euclidean (Vᵀ i)⟫ + ∥ to_euclidean (Vᵀ i) ∥^2 ≤ 
+  suffices : (∥ ((V_norm V)ᵀ i) ∥ + ∥(η ε V i) ∥)^2 
+    - 2 * ⟪ ((V_norm V)ᵀ i) + (η ε V i), (Vᵀ i)⟫ + ∥ (Vᵀ i) ∥^2 ≤ 
     (real.sqrt(d / n) - real.sqrt((1 - ε) * d / n))^2 + ∥ to_euclidean (η ε V i) ∥^2 + 2 * ∥ to_euclidean (η ε V i) ∥,
     { apply (le_trans _ this),
     apply add_le_add,
