@@ -4,6 +4,7 @@ import linear_algebra.linear_independent
 import analysis.normed_space.basic
 import analysis.inner_product_space.euclidean_dist
 import data.mvpolynomial.basic
+import data.polynomial.basic
 
 open_locale big_operators classical
 
@@ -159,9 +160,12 @@ end
 
 def perms_3 (n : ℕ) : set (fin n × (fin n) →₀ ℕ) := finsupp.equiv_fun_on_fintype.symm '' (perms n)
 
-lemma perms_3_equiv_perms (n : ℕ) : perms_3 n ≃ perms n :=
+def perms_finsupp (n : ℕ) : set (fin n × (fin n) →₀ ℕ) := 
+{ s : (fin n × (fin n) →₀ ℕ ) | finsupp.equiv_fun_on_fintype s ∈ perms n }
+
+noncomputable instance : fintype (perms_finsupp n) :=
 begin
-  sorry,
+  rw perms_finsupp,
 end
 
 noncomputable instance : fintype (perms_3 n) :=
@@ -170,6 +174,27 @@ begin
   apply fintype.of_equiv (perms n),
   exact equiv.image _ _,
 end
+
+lemma perms_3_equiv_perms (n : ℕ) : (perms_3 n).to_finset ≃ perms n :=
+{
+  to_fun := λ s,
+  begin
+    have := subtype.coe_prop s,
+    rw set.mem_def at this,
+    simp only [set.mem_to_finset_val] at this,
+    rw set.mem_def at this,
+
+  end,
+  inv_fun := sorry,
+  left_inv := sorry,
+  right_inv := sorry,
+
+}
+-- begin
+--   simp_rw perms_3,
+  
+-- end
+
 
 lemma equiv_apply_perms (s : (fin n) × (fin n) →₀ ℕ) : (finsupp.equiv_fun_on_fintype.symm '' (perms n)) s = (perms n) (finsupp.equiv_fun_on_fintype.symm s) :=
 begin
@@ -229,7 +254,11 @@ begin
       have := subtype.prop s,
       simp only [set.mem_to_finset] at this,
       rw set.mem_def at this,
-      have := perms_3_equiv_perms n s,
+      let s' := perms_3_equiv_perms n s,
+      have : is_perm ↑s' := subtype.prop s',
+      rw is_perm at this,
+      choose σ hσ using this,
+      exact σ,
     end,
     inv_fun := sorry,
     left_inv := sorry,
@@ -245,6 +274,7 @@ begin
   -- end,
   -- rw hsupport,
 end
+
 
 -- Warm up? (Not necessary)
 def perturbations' (ε : ℝ) (u : (fin d) → (fin d) → ℝ) : fin d → fin d → ℝ :=
