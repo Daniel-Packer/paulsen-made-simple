@@ -7,8 +7,10 @@ import data.mv_polynomial.basic
 import data.polynomial.basic
 import poly_questions
 import topology.category.Profinite.default
+import data.matrix.basic
+import linear_algebra.matrix.to_linear_equiv
 
-open_locale big_operators classical
+open_locale big_operators classical matrix
 
 /-- 
 The purpose of this document is to show:
@@ -18,9 +20,7 @@ The purpose of this document is to show:
   such that any size `d` subset of `uᵢ + η_i` are linearly independent.
   - These perturbations can be made arbitrarily small.
 -/
-
-variables {M : Type*} {d n : ℕ} [add_comm_group M] [module ℝ M]
-variables [has_norm M]
+variables {n : ℕ}
 
 def perm_graph (perm : equiv.perm (fin n)) : (fin n × fin n) → ℕ := λ ⟨i, j⟩, if perm j = i then 1 else 0
 
@@ -250,14 +250,101 @@ begin
   exact one_ne_zero h,
 end
 
--- Warm up? (Not necessary)
-def perturbations' (ε : ℝ) (u : (fin d) → (fin d) → ℝ) : fin d → fin d → ℝ :=
+lemma det_ne_zero_iff_cols_linear_independent {n : ℕ} (M : matrix (fin n) (fin n) ℝ) : 
+  M.det ≠ 0 ↔ linear_independent ℝ (λ i : fin n, M i) :=
 begin
-
-
+  rw ← matrix.nondegenerate_iff_det_ne_zero,
+  rw fintype.linear_independent_iff,
+  split,
+  intro h,
+  intros g hg,
+  have : (∀ (w : fin n → ℝ), g ⬝ᵥ M.mul_vec w = 0) → g = 0 := matrix.nondegenerate.eq_zero_of_ortho h,
+  suffices H : g = 0,
+  rw H,
+  simp only [pi.zero_apply, eq_self_iff_true, implies_true_iff],
+  apply this,
+  intro w,
+  rw matrix.dot_product_mul_vec,
+  have : matrix.vec_mul g M = 0 :=
+  begin
+    ext,
+    simp only [pi.zero_apply],
+    rw matrix.vec_mul,
+    rw matrix.dot_product,
+    rw function.funext_iff at hg,
+    specialize hg x,
+    simp only [algebra.id.smul_eq_mul,
+ matrix.transpose_apply,
+ pi.zero_apply,
+ fintype.sum_apply,
+ pi.smul_apply,
+ finset.sum_congr] at hg,
+ exact hg,
+  end,
+  rw this,
+  simp only [eq_self_iff_true, matrix.zero_dot_product],
+  intro H,
+  intro v,
+  specialize H v,
+  intro hv,
+  rw function.funext_iff,
+  apply H,
+  rw function.funext_iff,
+  intro a,
+  simp only [algebra.id.smul_eq_mul, pi.zero_apply, fintype.sum_apply, pi.smul_apply, finset.sum_congr],
+  specialize hv (pi.single a 1),
+  rw matrix.dot_product_mul_vec at hv,
+  rw matrix.dot_product at hv,
+  have : ∀ i : fin n, matrix.vec_mul v M i * pi.single a 1 i = pi.single a (matrix.vec_mul v M a) i :=
+  begin
+    intro i,
+    by_cases hi : a = i,
+    rw hi,
+    simp only [mul_one, eq_self_iff_true, pi.single_eq_same],
+    iterate{rw pi.single_eq_of_ne' hi,},
+    rw mul_zero,
+  end,
+  simp_rw this at hv,
+  rw finset.sum_pi_single' a (matrix.vec_mul v M a) _ at hv,
+  simp only [finset.mem_univ, if_true] at hv,
+  simpa using hv,
 end
 
-lemma perturbations'_apply (ε : ℝ) (u : (fin d) → (fin d) → ℝ) : linear_independent ℝ (λ i : fin d, u i + perturbations' ε u i) := sorry
+lemma exists_nearby_matrix (M : matrix (fin n) (fin n) ℝ) (ε : ℝ) (hε : ε > 0): 
+  ∃ M' : matrix (fin n) (fin n) ℝ, M'.det ≠ 0 ∧ dist M M' < ε :=
+begin
+  have matrix_nonzero_dense := nonzero_det_dense n,
+  rw dense at matrix_nonzero_dense,
+  specialize matrix_nonzero_dense M,
+  rw metric.mem_closure_iff at matrix_nonzero_dense,
+  specialize matrix_nonzero_dense ε hε,
+  simp_rw set.mem_set_of_eq at matrix_nonzero_dense,
+  simpa using matrix_nonzero_dense,
+end
+
+noncomputable def nonzero_det_matrix_nearby {n : ℕ} (M : matrix (fin n) (fin n) ℝ) (ε : ℝ) (hε : ε > 0) :
+  matrix (fin n) (fin n) ℝ :=
+classical.some (exists_nearby_matrix M ε hε)
+
+lemma nonzero_det_matrix_nearby_apply {n : ℕ} (M : matrix (fin n) (fin n) ℝ) (ε : ℝ) (hε : ε > 0) :
+  (nonzero_det_matrix_nearby M ε hε).det ≠ 0 :=
+(classical.some_spec (exists_nearby_matrix M ε hε)).1
+
+lemma nonzero_det_matrix_nearby_apply' {n : ℕ} (M : matrix (fin n) (fin n) ℝ) (ε : ℝ) (hε : ε > 0) :
+  dist M (nonzero_det_matrix_nearby M ε hε) < ε :=
+(classical.some_spec (exists_nearby_matrix M ε hε)).2
+
+-- Warm up? (Not necessary)
+noncomputable def perturbations' (ε : ℝ) (hε : ε > 0) (u : matrix (fin n) (fin n) ℝ) : matrix (fin n) (fin n) ℝ :=
+nonzero_det_matrix_nearby u ε hε - u
+
+lemma perturbations'_apply (ε : ℝ) (hε : ε > 0) (u : matrix (fin n) (fin n) ℝ) : 
+  linear_independent ℝ (λ i : fin n, uᵀ i + (perturbations' ε hε u)ᵀ i) :=
+begin
+  rw perturbations',
+  rw ← det_ne_zero_iff_cols_linear_independent,
+  simpa using (nonzero_det_matrix_nearby_apply _ _ _),
+end
 
 lemma perturbations'_bound (ε : ℝ) (u : (fin d) → fin d → ℝ) : ∀ i : fin d, ∥ to_euclidean (perturbations' ε u i) ∥^2 ≤ ε := sorry
 
