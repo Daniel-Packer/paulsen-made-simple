@@ -1,4 +1,5 @@
 import data.polynomial.basic
+import topology.metric_space.basic
 import data.polynomial.eval
 import data.mv_polynomial.basic
 import data.real.basic
@@ -6,6 +7,7 @@ import topology.basic
 import data.polynomial.ring_division
 import topology.instances.real
 import data.set.prod
+import mv_poly_partials
 
 open_locale polynomial classical
 
@@ -196,8 +198,96 @@ begin
   end,
   rw fact₂,
   rw ← fact₁,
+  -- simp [set.compl_eq_univ_diff],
+  -- exact dense.diff_finset (dense_univ) _,
   exact compl_finset_dense_in_R _,
 end
 
-lemma mvpoly_nonzero_open_dense {σ : Type*} {p : mv_polynomial σ ℝ} (hp : p ≠ 0) :
-  dense {x : σ → ℝ | mv_polynomial.eval x p ≠ 0} := sorry
+lemma poly_in_ball_eq_zero_eq_zero {σ : Type*} (r : ℝ)
+  [fintype σ]
+  {p : mv_polynomial σ ℝ}
+  (hp : p ≠ 0)
+  (H : r > 0)
+  (h : ¬(metric.ball (0 : σ → ℝ) r ∩
+            {y : σ → ℝ | (mv_polynomial.eval y) p ≠ 0}).nonempty) :
+  p = 0 :=
+begin
+  rw ← mv_poly_along_line_eq_zero_iff_mv_poly_eq_zero p,
+  by_contra h1,
+  simp only [not_forall] at h1,
+  choose y hy using h1,
+  have dense_nonzero_y := @poly_nonzero_dense σ _ hy,
+  by_cases hy' : y = 0,
+  simp_rw [eval_along_line_eq_eval, hy', smul_zero] at dense_nonzero_y,
+  rw [set.nonempty, not_exists] at h,
+  specialize h y,
+  rw hy' at h,
+  simp only [norm_zero, set.mem_inter_eq, not_and, mem_ball_zero_iff, set.mem_set_of_eq] at h,
+  specialize h H,
+  rw not_ne_iff at h,
+  rw [h] at dense_nonzero_y,
+  simp [set.set_of_false] at dense_nonzero_y,
+  rw [dense, closure_empty] at dense_nonzero_y,
+  specialize dense_nonzero_y 0,
+  rw set.mem_empty_eq at dense_nonzero_y,
+  exact dense_nonzero_y,
+  
+  have : ∀ t : ℝ, |t| * ∥ y ∥ < r → (mv_poly_along_line p y).eval t = 0 :=
+  begin
+    intros t ht,
+    rw eval_along_line_eq_eval,
+    have : t • y ∈ metric.ball (0 : σ → ℝ) r :=
+    begin
+      rw mem_ball_zero_iff,
+      rw norm_smul,
+      rw real.norm_eq_abs,
+      exact ht,
+    end,
+    rw set.nonempty at h,
+    rw not_exists at h,
+    specialize h (t • y),
+    simp only [set.mem_inter_eq, not_and, set.mem_set_of_eq] at h,
+    rw not_ne_iff at h,
+    exact h this,
+  end,
+  rw dense at dense_nonzero_y,
+  simp_rw real.mem_closure_iff at dense_nonzero_y,
+  specialize dense_nonzero_y 0 (r / ∥ y ∥) (by {ring, apply mul_pos, simp only [norm_pos_iff, ne.def, inv_pos], exact hy', exact H}),
+  choose t' ht' using dense_nonzero_y,
+  simp only [sub_zero, set.mem_set_of_eq] at ht',
+  specialize this t' (by {rw ← lt_div_iff, exact ht'.2, simp only [norm_pos_iff, ne.def, hy', not_false_iff],}), --ht'.2,
+  exact ht'.1 this,
+end
+
+lemma mvpoly_nonzero_dense {σ : Type*} [fintype σ] {p : mv_polynomial σ ℝ} (hp : p ≠ 0) :
+  dense {x : σ → ℝ | mv_polynomial.eval x p ≠ 0} := 
+begin
+  rw metric.dense_iff,
+  intros,
+  by_contra,
+  have : ¬ (metric.ball (0 : σ → ℝ) r ∩ {y : σ → ℝ | (mv_polynomial.eval y) (p.recenter (-x)) ≠ (0 : ℝ)}).nonempty :=
+  begin
+    rw [set.nonempty, not_exists],
+    rw [set.nonempty, not_exists] at h,
+    intro y,
+    simp only [set.mem_inter_eq, not_and, mem_ball_zero_iff, set.mem_set_of_eq],
+    intro hy,
+    rw mv_polynomial.recenter_eval,
+    simp only [not_not, ne.def, sub_neg_eq_add],
+    specialize h (y + x),
+    simp only [metric.mem_ball, set.mem_inter_eq, not_and, set.mem_set_of_eq] at h,
+    rw dist_eq_norm at h,
+
+    simp only [not_not, ne.def] at h,
+    apply h,
+    simp only [add_sub_cancel],
+    exact hy,
+  end,
+  have hp' := poly_in_ball_eq_zero_eq_zero r _ H this,
+  rw mv_polynomial.eq_zero_iff_recenter_eq_zero at hp',
+  exact hp hp',
+  intro hp',
+  rw mv_polynomial.eq_zero_iff_recenter_eq_zero at hp',
+  exact hp hp',
+
+end

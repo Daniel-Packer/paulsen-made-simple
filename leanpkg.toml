@@ -1,8 +1,8 @@
 [package]
 name = "paulsen-made-simple"
 version = "0.1"
-lean_version = "leanprover-community/lean:3.40.0"
+lean_version = "leanprover-community/lean:3.42.0"
 path = "src"
 
 [dependencies]
-mathlib = {git = "https://github.com/leanprover-community/mathlib", rev = "456898c78a673021294de10f0a6b53d609687765"}
+mathlib = {git = "https://github.com/leanprover-community/mathlib", rev = "434a938b357e76c85ea44e5ed798978c61da6bf8"}
