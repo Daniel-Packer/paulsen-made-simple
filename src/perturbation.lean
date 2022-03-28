@@ -6,6 +6,7 @@ import analysis.inner_product_space.euclidean_dist
 import data.mv_polynomial.basic
 import data.polynomial.basic
 import poly_questions
+import topology.category.Profinite.default
 
 open_locale big_operators classical
 
@@ -104,16 +105,136 @@ begin
   simp only [finset.mem_univ, if_true, eq_self_iff_true],
 end
 
-lemma matrix_dense_iff_uncurry_dense (n : ℕ) (f : ((fin n) → (fin n) → ℝ) → ℝ) : 
-  dense {M : matrix (fin n) (fin n) ℝ | f M ≠ 0} ↔ dense {σ : fin n × fin n → ℝ | f (function.curry σ) ≠ 0} :=
-begin
-  iterate {rw dense,},
-  split,
-  intros h x,
-  specialize h ((function.curry x) : matrix (fin n) (fin n) ℝ),
-  rw metric.mem_closure_iff,
-  rw metric.mem_closure_iff at h,
+-- instance : topological_space (fin n) := ⊥
+-- instance : discrete_topology (fin n) := ⟨ rfl ⟩
 
+-- noncomputable instance foo : semi_normed_group (matrix (fin n) (fin n) ℝ) := matrix.semi_normed_group
+noncomputable instance foo2 : normed_group (matrix (fin n) (fin n) ℝ) := matrix.normed_group
+
+
+def matrix_homeomorph_prod_fun (n : ℕ) : matrix (fin n) (fin n) ℝ ≃ₜ (fin n × fin n → ℝ) :=
+{
+  to_equiv :={
+  to_fun := function.uncurry,
+  inv_fun := function.curry,
+  left_inv := λ x, by {rw function.curry_uncurry},
+  right_inv := λ x, by {rw function.uncurry_curry},
+  },
+  continuous_to_fun := 
+  begin
+    simp only [],
+    rw metric.continuous_iff,
+    intros,
+    use ε,
+    split,
+    exact H,
+    intros a ha,
+    rw dist_eq_norm,
+    simp only [norm],
+    rw dist_eq_norm at ha,
+    simp_rw [pi.sub_apply, function.uncurry_def],
+    rw ← real.coe_to_nnreal ε (le_of_lt H),
+    rw nnreal.coe_lt_coe,
+    rw finset.sup_lt_iff,
+    intros ij _,
+    rw pi_norm_lt_iff H at ha,
+    specialize ha ij.fst,
+    rw pi.sub_apply at ha,
+    rw pi_norm_lt_iff H at ha,
+    specialize ha ij.snd,
+    rw real.norm_eq_abs at ha,
+    rw ← nnreal.coe_lt_coe,
+    simp only [real.coe_to_nnreal', lt_max_iff, coe_nnnorm, real.norm_eq_abs],
+    left,
+    exact ha,
+    rw ← nnreal.coe_lt_coe,
+    simp only [lt_self_iff_false, real.coe_to_nnreal', nonneg.coe_zero, lt_max_iff, bot_eq_zero, or_false],
+    exact H,
+  end,
+  continuous_inv_fun := 
+  begin
+    simp only [],
+    rw metric.continuous_iff,
+    intros,
+    use ε,
+    split,
+    exact H,
+    intros a ha,
+    rw dist_eq_norm,
+    rw dist_eq_norm at ha,
+    simp only [norm] at ha,
+    simp_rw [pi.sub_apply] at ha,
+    rw pi_norm_lt_iff H,
+    intro i,
+    rw pi_norm_lt_iff H,
+    intro j,
+    simp_rw [pi.sub_apply],
+    rw real.norm_eq_abs,
+    rw ← real.coe_to_nnreal ε (le_of_lt H) at ha,
+    rw nnreal.coe_lt_coe at ha,
+    rw finset.sup_lt_iff at ha,
+    specialize ha (i, j),
+    simp_rw function.curry_apply,
+    simp_rw ← nnreal.coe_lt_coe at ha,
+    simp only [lt_self_iff_false, real.coe_to_nnreal', nonneg.coe_zero, lt_max_iff, bot_eq_zero, or_false, coe_nnnorm, real.norm_eq_abs, abs_nonneg] at ha,
+    specialize ha (finset.mem_univ _),
+    have : ¬ |a (i, j) - b (i, j) | < 0 := by {simp only [not_lt], exact abs_nonneg _},
+    simp only [this, or_false] at ha,
+    exact ha,
+    simp only [real.to_nnreal_pos, bot_eq_zero],
+    exact H,
+  end,
+}
+
+lemma matrix_homeomorph_prod_fun.symm_apply {n : ℕ} (σ : (fin n) × (fin n) → ℝ) : (matrix_homeomorph_prod_fun n).symm σ = function.curry σ := rfl
+lemma matrix_homeomorph_prod_fun.apply {n : ℕ} (m : matrix (fin n) (fin n) ℝ) : (matrix_homeomorph_prod_fun n) m = function.uncurry m := rfl
+
+lemma matrix_curry_map_nonzero (n : ℕ)
+  (f : (fin n → fin n → ℝ) → ℝ) :
+  {σ : fin n × fin n → ℝ | f (function.curry σ) ≠ 0} =
+    ⇑(matrix_homeomorph_prod_fun n) ''
+      {m : matrix (fin n) (fin n) ℝ | f m ≠ 0} :=
+begin
+  rw set.image,
+  ext,
+  iterate{rw set.mem_set_of_eq,},
+  split,
+  intro h,
+  use (matrix_homeomorph_prod_fun n).symm x,
+  rw set.mem_set_of_eq,
+  simp only [homeomorph.apply_symm_apply, and_true, eq_self_iff_true],
+  rw matrix_homeomorph_prod_fun.symm_apply,
+  exact h,
+  intro h,
+  choose a ha using h,
+  rw ← ha.2,
+  rw set.mem_set_of_eq at ha,
+  rw matrix_homeomorph_prod_fun.apply,
+  simp only [function.curry_uncurry],
+  exact ha.1,
+end
+
+lemma matrix_dense_iff_uncurry_dense (n : ℕ) (f : ((fin n) → (fin n) → ℝ) → ℝ) : 
+  dense {m : matrix (fin n) (fin n) ℝ | f m ≠ 0} ↔ dense {σ : fin n × fin n → ℝ | f (function.curry σ) ≠ 0} :=
+begin
+  -- simp [(matrix_homeomorph_prod_fun n)],
+  iterate {rw dense,},
+  rw matrix_curry_map_nonzero n,
+  rw ← homeomorph.image_closure (matrix_homeomorph_prod_fun n) _,
+  simp_rw set.mem_image,
+  split,
+  intro h,
+  intro x,
+  use (matrix_homeomorph_prod_fun n).symm x,
+  specialize h ((matrix_homeomorph_prod_fun n).symm x),
+  simp only [homeomorph.apply_symm_apply, and_true, eq_self_iff_true],
+  exact h,
+  intros h x,
+  specialize h (matrix_homeomorph_prod_fun n x),
+  choose y hy using h,
+  rw (matrix_homeomorph_prod_fun n).injective.eq_iff at hy,
+  rw ← hy.2,
+  exact hy.1,
 end
 
 lemma nonzero_det_dense (n : ℕ) : dense {M : matrix (fin n) (fin n) ℝ | M.det ≠ 0} :=
