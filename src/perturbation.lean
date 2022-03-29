@@ -74,7 +74,40 @@ noncomputable def det_as_poly' (n : ℕ) : mv_polynomial (fin n × fin n) ℝ :=
 ∑ p : equiv.perm (fin n), (p.sign : ℝ) • perm_monomial p
 
 
-lemma det_as_poly_eq_det' (n : ℕ) (M : matrix (fin n) (fin n) ℝ) : mv_polynomial.eval (function.uncurry M) (det_as_poly' n) = M.det :=
+noncomputable def poly_map_of_var_map {σ τ : Type*} (f : σ → τ) (p : mv_polynomial σ ℝ) : mv_polynomial τ ℝ :=
+p.eval₂ mv_polynomial.C (mv_polynomial.X ∘ f)
+
+lemma poly_map_of_var_map.eval {σ τ : Type*} (f : σ → τ) (v : τ → ℝ) (p : mv_polynomial σ ℝ) :
+  mv_polynomial.eval (v ∘ f) p = mv_polynomial.eval v (poly_map_of_var_map f p) :=
+begin
+  rw poly_map_of_var_map,
+  rw mv_polynomial.eval,
+  rw mv_polynomial.eval,
+  rw mv_polynomial.eval₂_comp_right,
+  simp only [mv_polynomial.coe_eval₂_hom],
+  simp only [mv_polynomial.eval₂_hom_comp_C, mv_polynomial.eval₂_map],
+  congr' 1,
+  ext i,
+  simp only [eq_self_iff_true, function.comp_app, mv_polynomial.eval₂_X],
+end
+
+lemma poly_map_of_var_map.comp {σ τ ρ : Type*} (f : σ → τ) (g : τ → ρ) (p : mv_polynomial σ ℝ) :
+  poly_map_of_var_map g (poly_map_of_var_map f p) = poly_map_of_var_map (g ∘ f) p :=
+begin
+  rw poly_map_of_var_map,
+  rw poly_map_of_var_map,
+  rw poly_map_of_var_map,
+  rw ← mv_polynomial.eval₂_assoc,
+  simp,
+end
+
+noncomputable def mul_det_as_poly (n N : ℕ) : mv_polynomial (fin N × fin n) ℝ :=
+∏ (f : fin n → fin N) in finset.univ.filter function.injective, 
+  poly_map_of_var_map (prod.map f id) (det_as_poly' n)
+  -- (det_as_poly' n).eval₂ mv_polynomial.C (mv_polynomial.X ∘ (prod.map f id))
+
+lemma det_as_poly_eq_det' (n : ℕ) (M : matrix (fin n) (fin n) ℝ) :
+ mv_polynomial.eval (function.uncurry M) (det_as_poly' n) = M.det :=
 begin
   rw det_as_poly',
   rw mv_polynomial.eval_sum,
@@ -105,14 +138,27 @@ begin
   simp only [finset.mem_univ, if_true, eq_self_iff_true],
 end
 
+
+lemma mul_det_poly_eval (n N : ℕ) (M : matrix (fin N) (fin n) ℝ) :
+  mv_polynomial.eval (function.uncurry M) (mul_det_as_poly n N) = 
+  ∏ (f : fin n → fin N) in finset.univ.filter function.injective, matrix.det (M ∘ f) :=
+begin
+  rw mul_det_as_poly,
+  rw mv_polynomial.eval_prod,
+  simp_rw ← poly_map_of_var_map.eval,
+  simp_rw ← det_as_poly_eq_det',
+  congr' 1,
+end
 -- instance : topological_space (fin n) := ⊥
 -- instance : discrete_topology (fin n) := ⟨ rfl ⟩
 
+variables {N : ℕ}
 -- noncomputable instance foo : semi_normed_group (matrix (fin n) (fin n) ℝ) := matrix.semi_normed_group
 noncomputable instance foo2 : normed_group (matrix (fin n) (fin n) ℝ) := matrix.normed_group
+noncomputable instance foo3 : normed_group (matrix (fin N) (fin n) ℝ) := matrix.normed_group
 
 
-def matrix_homeomorph_prod_fun (n : ℕ) : matrix (fin n) (fin n) ℝ ≃ₜ (fin n × fin n → ℝ) :=
+def matrix_homeomorph_prod_fun (n N: ℕ) : matrix (fin N) (fin n) ℝ ≃ₜ (fin N × fin n → ℝ) :=
 {
   to_equiv :={
   to_fun := function.uncurry,
@@ -186,21 +232,21 @@ def matrix_homeomorph_prod_fun (n : ℕ) : matrix (fin n) (fin n) ℝ ≃ₜ (fi
   end,
 }
 
-lemma matrix_homeomorph_prod_fun.symm_apply {n : ℕ} (σ : (fin n) × (fin n) → ℝ) : (matrix_homeomorph_prod_fun n).symm σ = function.curry σ := rfl
-lemma matrix_homeomorph_prod_fun.apply {n : ℕ} (m : matrix (fin n) (fin n) ℝ) : (matrix_homeomorph_prod_fun n) m = function.uncurry m := rfl
+lemma matrix_homeomorph_prod_fun.symm_apply {n N : ℕ} (σ : (fin N) × (fin n) → ℝ) : (matrix_homeomorph_prod_fun n N).symm σ = function.curry σ := rfl
+lemma matrix_homeomorph_prod_fun.apply {n N : ℕ} (m : matrix (fin N) (fin n) ℝ) : (matrix_homeomorph_prod_fun n N) m = function.uncurry m := rfl
 
-lemma matrix_curry_map_nonzero (n : ℕ)
-  (f : (fin n → fin n → ℝ) → ℝ) :
-  {σ : fin n × fin n → ℝ | f (function.curry σ) ≠ 0} =
-    ⇑(matrix_homeomorph_prod_fun n) ''
-      {m : matrix (fin n) (fin n) ℝ | f m ≠ 0} :=
+lemma matrix_curry_map_nonzero (n N : ℕ)
+  (f : (fin N → fin n → ℝ) → ℝ) :
+  {σ : fin N × fin n → ℝ | f (function.curry σ) ≠ 0} =
+    ⇑(matrix_homeomorph_prod_fun n N) ''
+      {m : matrix (fin N) (fin n) ℝ | f m ≠ 0} :=
 begin
   rw set.image,
   ext,
   iterate{rw set.mem_set_of_eq,},
   split,
   intro h,
-  use (matrix_homeomorph_prod_fun n).symm x,
+  use (matrix_homeomorph_prod_fun n N).symm x,
   rw set.mem_set_of_eq,
   simp only [homeomorph.apply_symm_apply, and_true, eq_self_iff_true],
   rw matrix_homeomorph_prod_fun.symm_apply,
@@ -214,25 +260,25 @@ begin
   exact ha.1,
 end
 
-lemma matrix_dense_iff_uncurry_dense (n : ℕ) (f : ((fin n) → (fin n) → ℝ) → ℝ) : 
-  dense {m : matrix (fin n) (fin n) ℝ | f m ≠ 0} ↔ dense {σ : fin n × fin n → ℝ | f (function.curry σ) ≠ 0} :=
+lemma matrix_dense_iff_uncurry_dense (n N : ℕ) (f : ((fin N) → (fin n) → ℝ) → ℝ) : 
+  dense {m : matrix (fin N) (fin n) ℝ | f m ≠ 0} ↔ dense {σ : fin N × fin n → ℝ | f (function.curry σ) ≠ 0} :=
 begin
   -- simp [(matrix_homeomorph_prod_fun n)],
   iterate {rw dense,},
   rw matrix_curry_map_nonzero n,
-  rw ← homeomorph.image_closure (matrix_homeomorph_prod_fun n) _,
+  rw ← homeomorph.image_closure (matrix_homeomorph_prod_fun n N) _,
   simp_rw set.mem_image,
   split,
   intro h,
   intro x,
-  use (matrix_homeomorph_prod_fun n).symm x,
-  specialize h ((matrix_homeomorph_prod_fun n).symm x),
+  use (matrix_homeomorph_prod_fun n N).symm x,
+  specialize h ((matrix_homeomorph_prod_fun n N).symm x),
   simp only [homeomorph.apply_symm_apply, and_true, eq_self_iff_true],
   exact h,
   intros h x,
-  specialize h (matrix_homeomorph_prod_fun n x),
+  specialize h (matrix_homeomorph_prod_fun n N x),
   choose y hy using h,
-  rw (matrix_homeomorph_prod_fun n).injective.eq_iff at hy,
+  rw (matrix_homeomorph_prod_fun n N).injective.eq_iff at hy,
   rw ← hy.2,
   exact hy.1,
 end
@@ -346,21 +392,143 @@ begin
   simpa using (nonzero_det_matrix_nearby_apply _ _ _),
 end
 
-lemma perturbations'_bound (ε : ℝ) (u : (fin d) → fin d → ℝ) : ∀ i : fin d, ∥ to_euclidean (perturbations' ε u i) ∥^2 ≤ ε := sorry
-
-def perturbation_small (ε : ℝ) (u v : fin d → ℝ) : fin d → ℝ  := sorry
-
-lemma perturbation_small_apply (ε : ℝ) (u v : fin d → ℝ) : 
-  linear_independent ℝ (λ i : bool, if i then u + perturbation_small ε u v else v):=
+lemma perturbations'_bound (ε : ℝ) (hε : ε > 0) (u : matrix (fin n) (fin n) ℝ) : 
+  ∀ i : fin n, ∥ perturbations' ε hε u i ∥ ≤ ε :=
 begin
-
+  rw perturbations',
+  have : dist u (nonzero_det_matrix_nearby u ε hε) < ε := nonzero_det_matrix_nearby_apply' _ _ _,
+  rw dist_eq_norm at this,
+  rw pi_norm_lt_iff hε at this,
+  intro i,
+  specialize this i,
+  rw pi.sub_apply,
+  rw pi.sub_apply at this,
+  rw norm_sub_rev,
+  exact le_of_lt this,
 end
 
+-- def perturbation_small (ε : ℝ) (u v : fin d → ℝ) : fin d → ℝ  := sorry
+
+-- lemma perturbation_small_apply (ε : ℝ) (u v : fin d → ℝ) : 
+--   linear_independent ℝ (λ i : bool, if i then u + perturbation_small ε u v else v):=
+-- begin
+
+-- end
+
+lemma subset_linear_independent_iff_all_dets_ne_zero {n N : ℕ} (hN : n ≤ N) (v : fin N → fin n → ℝ) :
+  (∀ f : fin n → fin N, function.injective f → linear_independent ℝ (v ∘ f)) ↔ 
+    ∏ (f : fin n → fin N) in finset.univ.filter function.injective, matrix.det (v ∘ f) ≠ 0 :=
+begin
+  rw finset.prod_ne_zero_iff,
+  split,
+  intros h a,
+  rw finset.mem_filter,
+  simp only [finset.mem_univ, true_and],
+  intro ha,
+  specialize h a ha,
+  rw det_ne_zero_iff_cols_linear_independent,
+  exact h,
+  intros h f hf,
+  rw ← det_ne_zero_iff_cols_linear_independent,
+  specialize h f,
+  rw finset.mem_filter at h,
+  simp only [finset.mem_univ, true_and] at h,
+  specialize h hf,
+  exact h,
+end
+
+-- lemma set_of_sub_matrix_eq_set_of_matrix {n N : ℕ} (hN : n ≤ N) (s : fin n → fin N) (hs : function.injective s) :
+--   { M : matrix (fin N) (fin n) ℝ }
+
+lemma det_ne_zero_dense_for_Nn_matrix {n N : ℕ} (hn : 0 < n) (hN : n ≤ N) :
+  dense { M : matrix (fin N) (fin n) ℝ | ∏ (f : fin n → fin N) in finset.univ.filter function.injective, matrix.det (M ∘ f) ≠ 0 } :=
+begin
+  simp_rw ← mul_det_poly_eval,
+  rw matrix_dense_iff_uncurry_dense,
+  simp_rw function.uncurry_curry,
+  apply mvpoly_nonzero_dense,
+  rw mul_det_as_poly,
+  rw finset.prod_ne_zero_iff,
+  intros f hf hzero,
+
+  haveI := fin.pos_iff_nonempty.1 hn,
+  rw mv_polynomial.funext_iff at hzero,
+  simp only [true_and, finset.mem_univ, finset.mem_filter] at hf,
+  rw function.injective_iff_has_left_inverse at hf,
+  choose f_inv hf_inv using hf,
+
+  let one := (function.uncurry (1 : matrix (fin n) (fin n) ℝ)) ∘ (prod.map f_inv id),
+  specialize hzero one,
+  rw poly_map_of_var_map.eval at hzero,
+  rw poly_map_of_var_map.comp at hzero,
+  rw prod.map_comp_map at hzero,
+  rw function.left_inverse_iff_comp.1 hf_inv at hzero,
+  simp only [function.comp.right_id, map_zero] at hzero,
+  have : prod.map (id : fin n → fin n) (id : fin n → fin n) = id := 
+  begin
+    ext,
+    simp only [prod.mk.eta, id.def, prod_map, eq_self_iff_true],
+    simp only [prod.mk.eta, id.def, prod_map, eq_self_iff_true],
+  end,
+  rw this at hzero,
+  rw poly_map_of_var_map at hzero,
+  simp only [function.comp.right_id, mv_polynomial.eval₂_eta] at hzero,
+  rw det_as_poly_eq_det' at hzero,
+  rw matrix.det_one at hzero,
+  exact one_ne_zero hzero,
+end
+
+lemma exists_nearby_wide_matrix (hn : 0 < n) (hN : n ≤ N) (M : matrix (fin N) (fin n) ℝ) (ε : ℝ) (hε : ε > 0): 
+  ∃ M' : matrix (fin N) (fin n) ℝ,
+  ∏ (f : fin n → fin N) in finset.univ.filter function.injective, matrix.det (M' ∘ f) ≠ 0 ∧ dist M M' < ε :=
+begin
+  have matrix_dense := det_ne_zero_dense_for_Nn_matrix hn hN,
+  rw dense at matrix_dense,
+  specialize matrix_dense M,
+  rw metric.mem_closure_iff at matrix_dense,
+  specialize matrix_dense ε hε,
+  simp_rw set.mem_set_of_eq at matrix_dense,
+  choose M' hM' using matrix_dense,
+  use M',
+  exact hM',
+end
+
+noncomputable def nonzero_wide_det_matrix_nearby {n : ℕ} (hn : 0 < n) (hN : n ≤ N) (M : matrix (fin N) (fin n) ℝ) (ε : ℝ) (hε : ε > 0) :
+  matrix (fin N) (fin n) ℝ :=
+classical.some (exists_nearby_wide_matrix hn hN M ε hε)
+
+lemma nonzero_wide_det_matrix_nearby_apply {n : ℕ} (hn : 0 < n) (hN : n ≤ N) (M : matrix (fin N) (fin n) ℝ) (ε : ℝ) (hε : ε > 0)  :
+  ∏ (f : fin n → fin N) in finset.univ.filter function.injective, matrix.det ((nonzero_wide_det_matrix_nearby hn hN M ε hε) ∘ f) ≠ 0 :=
+(classical.some_spec (exists_nearby_wide_matrix hn hN M ε hε)).1
+
+lemma nonzero_wide_det_matrix_nearby_apply' {n : ℕ} (hn : 0 < n) (hN : n ≤ N) (M : matrix (fin N) (fin n) ℝ) (ε : ℝ) (hε : ε > 0)  :
+  dist M (nonzero_wide_det_matrix_nearby hn hN M ε hε) < ε :=
+(classical.some_spec (exists_nearby_wide_matrix hn hN M ε hε)).2
+
 --What we actually need:
-def perturbations (ε : ℝ) (u : (fin n) → fin d → ℝ) : fin n → fin d → ℝ := sorry
+noncomputable def perturbations (hn : 0 < n) (hN : n ≤ N) (u : fin N → fin n → ℝ) (ε : ℝ) (hε : ε > 0) : fin N → fin n → ℝ :=
+nonzero_wide_det_matrix_nearby hn hN u ε hε - u
 
 /-- The perturbations make -/
-lemma perturbations_apply (ε : ℝ) (u : (fin n) → fin d → ℝ) {f : (fin d) → (fin n)} (hf : function.injective f) : 
-  linear_independent ℝ (λ i : fin d, u (f i) + perturbations ε u (f i)) := sorry
+lemma perturbations_apply (hn : 0 < n) (hN : n ≤ N) (ε : ℝ) (hε : ε > 0) (u : fin N → fin n → ℝ) {f : (fin n) → (fin N)} (hf : function.injective f) : 
+  linear_independent ℝ (λ i : fin n, u (f i) + perturbations hn hN u ε hε (f i)) :=
+begin
+  rw perturbations,
+  simp,
+  rw ← det_ne_zero_iff_cols_linear_independent,
+  have := nonzero_wide_det_matrix_nearby_apply hn hN u ε hε,
+  simp_rw [finset.prod_ne_zero_iff, finset.mem_filter, finset.mem_univ, true_and] at this,
+  specialize this f hf,
+  exact this,
+end
 
-lemma perturbations_bound (ε : ℝ) (u : (fin n) → fin d → ℝ) : ∀ i : fin n, ∥ to_euclidean (perturbations ε u i) ∥^2 ≤ ε := sorry
+lemma perturbations_bound (hn : 0 < n) (hN : n ≤ N) (ε : ℝ) (hε : ε > 0) (u : fin N → fin n → ℝ) : 
+∀ i : fin N, ∥ perturbations hn hN u ε hε i ∥ ≤ ε :=
+begin
+  rw perturbations,
+  have := nonzero_wide_det_matrix_nearby_apply' hn hN u ε hε,
+  rw dist_eq_norm at this,
+  rw pi_norm_lt_iff hε at this,
+  simp_rw [pi.sub_apply, norm_sub_rev, ← pi.sub_apply],
+  exact (λ i, le_of_lt (this i)),
+end
