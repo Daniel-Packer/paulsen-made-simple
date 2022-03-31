@@ -70,7 +70,7 @@ def is_eps_parseval_frame (U : matrix (fin d) (fin n) ℝ) (ε : ℝ) : Prop :=
 
 /-- Finds a nearby Parseval Frame as given in the proof, Paulsen made simple: -/
 
-noncomputable def nearby_parseval_frame {ε : ℝ} (V : matrix (fin d) (fin n) ℝ) 
+noncomputable def nearby_parseval_frame {ε : ℝ} (hε : ε > 0) (V : matrix (fin d) (fin n) ℝ) 
   (hV : is_eps_parseval_frame V ε) : matrix (fin d) (fin n) ℝ :=
 begin
   let V_norm := (real.sqrt(d / n)) • norm_columns(V),

@@ -1,156 +1,189 @@
 import data.real.basic
+import order.locally_finite
 import data.fin.basic
-import summation
 import algebra.big_operators.ring
-import summation
+import data.nat.interval
+import algebra.big_operators.intervals
+import group_theory.group_action.basic
 
-variables {d n : ℕ} {hdzero : d ≠ 0}
+variables (d : ℕ) (x y : ℕ → ℝ)
 
 open_locale big_operators
 
--- ∀ j ≤ d, ∑ (i < j), x i ≤ ∑ (i < j), y i
-def majorizes_le (x y : fin d → ℝ) : Prop :=
-  ∀ j ≤ d, ∑ i : (fin j), x (fin.cast_le H i) ≤ ∑ i : (fin j), y (fin.cast_le H i)
+-- finset.range j = finset.Ico 0 j = [0,j)
 
--- ∑ (i < d), x i = ∑ (i < d), y i
-def majorizes_eq (x y : fin d → ℝ) : Prop :=
-  ∑ i : fin d, x i = ∑ i : fin d, y i
-  
-def majorizes (x y : fin d → ℝ ) : Prop :=
-  majorizes_le x y ∧ majorizes_eq x y
+def majorizes_le : Prop :=
+  ∀ j < d, ∑ (i : ℕ) in finset.Ico 1 (j.succ), y i ≤ ∑ (i : ℕ) in finset.Ico 1 (j.succ), x i
 
--- T x y := ∑ (j < d), j • (x j - y j)
-def T (x y : fin d → ℝ) : ℝ :=
-  ∑ j : fin d, (j.val + 1) • (y j - x j)
+def majorizes_eq : Prop :=
+  ∑ (i : ℕ) in finset.Ico 1 (d.succ), y i = ∑ (i : ℕ) in finset.Ico 1 (d.succ), x i
 
-lemma T_apply' [has_zero (fin (d + 1))] {x y : fin (d + 1) → ℝ} : T x y = ∑ j i : fin (d + 1), ite (i ≤ j) (y j - x j) 0 :=
+def T := ∑ (j : ℕ) in finset.Ico 1 (d.succ), j • (y j - x j)
+
+lemma T_one (x y : ℕ → ℝ) (h_maj : majorizes_eq d x y) :
+  T d x y = ∑ (i : ℕ) in finset.Ico 1 (d.succ), ∑ (j : ℕ) in finset.Ico 1 i, (x j - y j) :=
 begin
   rw T,
-  congr,
-  ext j,
-  rw finset.sum_ite,
-  have : ∀ i : fin (d + 1), i ∈ finset.univ.filter (λ x : fin (d + 1), ¬x ≤ j) → (0 : ℝ) = 0 :=
+  have : ∀ (j : ℕ), j • (y j - x j) = ∑ (i : ℕ) in finset.Ico 1 (j.succ), (y j - x j) :=
+  λ (j : ℕ), by simp only [tsub_zero, finset.sum_sub_distrib, nat.succ_sub_succ_eq_sub,
+    finset.sum_const, nsmul_eq_mul, nat.card_Ico],
+  simp only [this],
+  clear this,
+  have : ∑ (j : ℕ) in finset.Ico 1 (d.succ), ∑ (i : ℕ) in finset.Ico 1 (j.succ), (y j - x j)
+    = ∑ (i : ℕ) in finset.Ico 1 (d.succ), ∑ (j : ℕ) in finset.Ico i (d.succ), (y j - x j),
+  rw finset.sum_Ico_Ico_comm,
+  rw this,
+  clear this,
+  apply finset.sum_congr,
+  simp only [eq_self_iff_true],
+  intros i hi,
+  rw finset.mem_Ico at hi,
+  simp only [finset.sum_sub_distrib],
+  rw [sub_eq_iff_eq_add, add_comm, ← add_sub_assoc],
+  symmetry,
+  rw sub_eq_iff_eq_add,
+  rw add_comm,
+  rw finset.sum_Ico_consecutive _ hi.1 (le_of_lt hi.2),
+  rw add_comm,
+  rw finset.sum_Ico_consecutive _ hi.1 (le_of_lt hi.2),
+  rw majorizes_eq at h_maj,
+  symmetry,
+  exact h_maj,
+end
+
+lemma T_two (x y : ℕ → ℝ) (h_maj : majorizes_eq d x y) :
+  T d x y = ∑ (i : ℕ) in finset.Ico 1 (d.succ), ∑ (j : ℕ) in finset.Ico 1 i.succ, (x j - y j) :=
+begin
+  rw T_one d x y h_maj,
+  have : ∑ (i : ℕ) in finset.Ico 1 d.succ, ∑ (j : ℕ) in finset.Ico 1 i.succ, (x j - y j) = 
+    ∑ (i : ℕ) in finset.Ico 1 d.succ, (∑ (j : ℕ) in finset.Ico 1 i, (x j - y j) + (x i - y i)) :=
   begin
-    intros i h,
-    exact rfl,
+    apply finset.sum_congr,
+    simp only [eq_self_iff_true],
+    intros i hi,
+    rw finset.mem_Ico at hi,
+    rw finset.sum_Ico_succ_top hi.1,
   end,
+  rw this,
+  rw finset.sum_add_distrib,
+  simp only [finset.sum_sub_distrib, self_eq_add_right, finset.sum_congr],
+  rw majorizes_eq at h_maj,
+  rw h_maj,
+  simp only [eq_self_iff_true, sub_self],
+end
 
-  have hsum := finset.sum_eq_zero this,
-  simp_rw function.comp_app at hsum,
-  rw [hsum, add_zero],
-  rw finset.sum_const,
-  simp only [fin.val_eq_coe, nsmul_eq_mul, nat.cast_add, nat.cast_one, mul_eq_mul_right_iff],
-  left,
-  simp_rw [fin.le_def, ← fin.coe_eq_val],
-  induction ↑j with j h,
-  simp_rw nat.le_zero_iff,
-  have : ∀ x : fin (d + 1), ↑x = 0 ↔ x = 0 :=
+lemma T_three (x y : ℕ → ℝ) (h_d : 1 ≤ d) (h_maj : majorizes_eq d x y) :
+  T d x y = ∑ (i : ℕ) in finset.Ico 1 d, ∑ (j : ℕ) in finset.Ico 1 i.succ, (x j - y j) :=
+begin
+  rw T_two d x y h_maj,
+  rw finset.sum_Ico_succ_top h_d,
+  simp only [add_right_eq_self, finset.sum_sub_distrib, finset.sum_congr],
+  rw majorizes_eq at h_maj,
+  rw h_maj,
+  simp only [eq_self_iff_true, sub_self],
+end
+
+lemma T_four (x y : ℕ → ℝ) (h_d : 1 ≤ d) (h_maj : majorizes_eq d x y) :
+  2 • (T d x y) = ∑ (i : ℕ) in finset.Ico 1 d, 2 • ∑ (j : ℕ) in finset.Ico 1 i.succ, (x j - y j) :=
+begin
+  rw T_three _ _ _ h_d h_maj,
+  rw finset.smul_sum,
+end
+
+lemma norm_one (x y : ℕ → ℝ) (h_d : 1 ≤ d) :
+  ∑ (j : ℕ) in finset.Ico 1 d.succ, |x j - y j| = ∑ (j : ℕ) in finset.Ico 1 d, |x j - y j| + | x d - y d| :=
+begin
+  rw finset.sum_Ico_succ_top h_d,
+end
+
+lemma norm_two (x y : ℕ → ℝ) (h_d : 1 ≤ d) (h_maj : majorizes_eq d x y) (h_majle : majorizes_le d x y):
+  |x d - y d| = ∑ (j : ℕ) in finset.Ico 1 d, (x j - y j) :=
+begin
+  have : ∑ (j : ℕ) in finset.Ico 1 d.succ, (x j - y j) = 0 :=
   begin
-    intro x,
-    have : (0 : fin (d + 1)).val = 0 :=
-    begin
-      simp?,
-    end,
+    rw majorizes_eq at h_maj,
+    rw finset.sum_sub_distrib,
+    rw h_maj,
+    simp only [eq_self_iff_true, sub_self],
   end,
-  rw ← fintype.card_subtype,
-
-  -- have : {x : fin d // ↑x = 0} ≃ {x : fin d // x = 0} :=
-  -- {
-  --   to_fun := 
-  --   begin
-  --     intro x,
-  --     have := subtype.prop x,
-  --     have : x = 0 := sorry,
-  --   end,
-  --   inv_fun :=
-  --   begin
-
-  --   end,
-  --   left_inv :=
-  --   begin
-
-  --   end,
-  --   right_inv :=
-  --   begin
-
-  --   end,
-  -- }
-
-
-  -- change ↑0 + 1 = ↑((finset.univ.filter (eq 0)).card,
-  -- rw finset.filter_eq,
-  -- induction j with j hj h,
-
-  -- rw finset.sum_comm,
-end
-
-lemma T_apply {x y : fin d → ℝ} : 
-  -- T x y = ∑ j : fin d, (∑ i : fin (j.val), (x (fin.cast_le j.is_lt i) - y (fin.cast_le j.is_lt i))) :=
-  T x y = ∑ j : fin d, (∑ i : fin d in finset.univ.filter (λ i, i ≤ j), (x i - y i)) :=
-begin
-  rw T,
-  induction d with d hd,
-  simp only [finset.sum_sub_distrib,
- fin.val_eq_coe,
- finset.sum_empty,
- finset.filter_true_of_mem,
- nsmul_eq_mul,
- eq_self_iff_true,
- sub_zero,
- nat.cast_add,
- nat.cast_one,
- finset.sum_const_zero,
- finset.sum_congr,
- fintype.univ_of_is_empty],
-  rw sum_split_last,
-  rw sum_split_last,
-  have : ∑ (j : fin d), (j.val + 1) • (y j - x j) = ∑ (i : fin d), ((i : fin d.succ).val + 1) • (y i - x i) :=
+  have : x d - y d = ∑ (j : ℕ) in finset.Ico 1 d, (y j - x j) :=
   begin
-    sorry,
+    rw finset.sum_Ico_succ_top at this,
+    rw add_eq_zero_iff_neg_eq at this,
+    rw ← this,
+    norm_num,
+    exact h_d,
   end,
-  rw ← this,
-  rw hd,
-  simp?,
-
-  -- simp?,
-  -- simp_rw hd,
-  -- simp [hd],
-  -- rw hd,
-  sorry,
+  rw this,
+  have : ∑ (j : ℕ) in finset.Ico 1 d, (x j - y j) = - ∑ (j : ℕ) in finset.Ico 1 d, (y j - x j) :=
+  begin
+    simp only [finset.sum_sub_distrib, eq_self_iff_true, neg_sub, sub_left_inj],
+  end,
+  rw this,
+  rw abs_eq_neg_self,
+  rw majorizes_le at h_majle,
+  specialize h_majle (d - 1),
+  simp only [finset.sum_sub_distrib, sub_nonpos],
+  simp at h_majle,
+  apply h_majle,
+  linarith,
 end
 
-lemma eq₁ {d : ℕ} {x y : fin d → ℝ} (hmaj : majorizes x y) : 
-  T x y = ∑ j : fin (d - 1), (∑ i : fin j, 
-    (x (fin.cast_le (le_trans (le_of_lt j.is_lt) (nat.sub_le d 1)) i) 
-      - y (fin.cast_le (le_trans (le_of_lt j.is_lt) (nat.sub_le d 1)) i))) :=
+lemma norm_three (x y : ℕ → ℝ) (h_d : 1 ≤ d) (h_maj : majorizes_eq d x y) (h_majle : majorizes_le d x y) :
+  ∑ (j : ℕ) in finset.Ico 1 d.succ, |x j - y j| = ∑ (j : ℕ) in finset.Ico 1 d, (|x j - y j| + (x j - y j)) :=
 begin
-  rw T_apply hmaj,
-  -- Maybe Hans knows how to manipulate these sorts of results
-  -- rw finset.sum_eq_add_sum_diff_singleton (d - 1 ∈ (fin d).univ),
-  sorry,
+  rw norm_one _ _ _ h_d,
+  rw norm_two _ _ _ h_d h_maj h_majle,
+  rw finset.sum_add_distrib,
 end
 
-lemma eq₂ {d : ℕ} {x y : fin d → ℝ} (hmaj : majorizes x y) : 
-  ∑ i : fin d, | x i - y i | = ∑ i : fin (d - 1), 
-  (| x (fin.cast_le (nat.sub_le d 1) i) - y (fin.cast_le (nat.sub_le d 1) i) | 
-    + x (fin.cast_le (nat.sub_le d 1) i) - y (fin.cast_le (nat.sub_le d 1) i)) :=
+lemma norm_le_2T (x y : ℕ → ℝ) (h_d : 1 ≤ d) (h_majle : majorizes_le d x y) (h_maj : majorizes_eq d x y):
+  ∑ (j : ℕ) in finset.Ico 1 d, (|x j - y j| + (x j - y j)) ≤ 2 • (T d x y) :=
 begin
-  sorry,
-end
-
-lemma compare_terms {d : ℕ} {j : fin d} {x y : fin d → ℝ} (hmaj : majorizes x y) (hj : ↑j < d) :
-  | x j - y j | + x j - y j  ≤ 2 * ∑ i : fin j, (x (fin.cast_le hj i) - y (fin.cast_le hj i)) :=
-begin
-  sorry,
-end
-
-lemma sum_abs_le_T {d : ℕ} {x y : fin d → ℝ} (hmaj : majorizes x y) :
-  ∑ i : fin d, | x i - y i | ≤ 2 * T x y :=
-begin
-  rw eq₁ hmaj,
-  rw eq₂ hmaj,
-  rw finset.mul_sum,
+  rw T_four d x y h_d h_maj,
   apply finset.sum_le_sum,
-  intro i,
-  sorry
+  intros i hi,
+  by_cases (0 ≤ x i - y i),
+  have : |x i - y i| = x i - y i :=
+  begin
+    rw abs_eq_self,
+    exact h,
+  end,
+  rw this,
+  clear this,
+  rw finset.sum_Ico_succ_top,
+  simp only [finset.sum_sub_distrib, nat.cast_bit0, nsmul_eq_mul, nat.cast_one],
+  rw left_distrib,
+  have : x i - y i + (x i - y i) = 2 * (x i - y i),
+  ring,
+  rw this,
+  apply le_add_of_nonneg_left,
+  rw finset.mem_Ico at hi,
+  rw majorizes_le at h_majle,
+  specialize h_majle (i - 1),
+  rw zero_le_mul_left,
+  simp only [sub_nonneg],
+  have : i - 1 < d,
+  linarith,
+  apply h_majle this,
+  norm_num,
+  rw finset.mem_Ico at hi,
+  exact hi.1,
+  have : |x i - y i| = -(x i - y i) :=
+  begin
+    rw abs_eq_neg_self,
+    simp only [sub_nonpos],
+    simp at h,
+    exact le_of_lt h,
+  end,
+  rw this,
+  simp only [finset.sum_sub_distrib, sub_nonneg, nat.cast_bit0, zero_le_mul_left, nsmul_eq_mul,
+    neg_sub, nat.cast_one, sub_add_sub_cancel', sub_self],
+  rw majorizes_le at h_majle,
+  specialize h_majle i,
+  rw zero_le_mul_left,
+  rw sub_nonneg,
+  rw finset.mem_Ico at hi,
+  apply h_majle hi.2,
+  linarith,
 end
